@@ -23,6 +23,16 @@ import torch.nn.functional as F
 BN_MOMENTUM = 0.1
 logger = logging.getLogger(__name__)
 
+class NoOpModule(nn.Module):
+    """
+    To deal with writing the graph to TensorBoard
+    https://github.com/pytorch/pytorch/issues/30459#issuecomment-597679482
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, *args, **kwargs):
+        return args
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
@@ -196,7 +206,8 @@ class HighResolutionModule(nn.Module):
                                        momentum=BN_MOMENTUM),
                         nn.Upsample(scale_factor=2**(j-i), mode='nearest')))
                 elif j == i:
-                    fuse_layer.append(None)
+                    # fuse_layer.append(None)
+                    fuse_layer.append(NoOpModule())
                 else:
                     conv3x3s = []
                     for k in range(i-j):
@@ -376,7 +387,8 @@ class HighResolutionNet(nn.Module):
                             num_channels_cur_layer[i], momentum=BN_MOMENTUM),
                         nn.ReLU(inplace=True)))
                 else:
-                    transition_layers.append(None)
+                    # transition_layers.append(None)
+                    transition_layers.append(NoOpModule())
             else:
                 conv3x3s = []
                 for j in range(i+1-num_branches_pre):
@@ -450,7 +462,8 @@ class HighResolutionNet(nn.Module):
 
         x_list = []
         for i in range(self.stage2_cfg['NUM_BRANCHES']):
-            if self.transition1[i] is not None:
+            # if self.transition1[i] is not None:
+            if not isinstance(self.transition1[i], NoOpModule):
                 x_list.append(self.transition1[i](x))
             else:
                 x_list.append(x)
@@ -458,7 +471,8 @@ class HighResolutionNet(nn.Module):
 
         x_list = []
         for i in range(self.stage3_cfg['NUM_BRANCHES']):
-            if self.transition2[i] is not None:
+            # if self.transition2[i] is not None:
+            if not isinstance(self.transition2[i], NoOpModule):
                 x_list.append(self.transition2[i](y_list[-1]))
             else:
                 x_list.append(y_list[i])
@@ -466,7 +480,8 @@ class HighResolutionNet(nn.Module):
 
         x_list = []
         for i in range(self.stage4_cfg['NUM_BRANCHES']):
-            if self.transition3[i] is not None:
+            # if self.transition3[i] is not None:
+            if not isinstance(self.transition3[i], NoOpModule):
                 x_list.append(self.transition3[i](y_list[-1]))
             else:
                 x_list.append(y_list[i])
